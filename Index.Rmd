@@ -285,6 +285,8 @@ In base R, "par(mfrow=c( , ))" is a very nice, quick way to display multiple plo
 
 * [Facets](http://www.cookbook-r.com/Graphs/Facets_(ggplot2)/)
 
+![Facet example](/Users/areisett/OneDrive - University of Iowa/ggplot2_tutorial/admixture_20_causal_Page_001.jpg)
+
 * Packages
 
   + [gridExtra](https://cran.r-project.org/web/packages/gridExtra/vignettes/arrangeGrob.html/)

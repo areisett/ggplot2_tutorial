@@ -1,0 +1,341 @@
+---
+title: "Data visualization with ggplot2"
+author: "Anna Reisetter"
+date: "10/17/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# What is ggplot?
+
+"ggplot2 is a system for declaratively creating graphics, based on The Grammar of Graphics. You provide the data, tell ggplot2 how to map variables to aesthetics, what graphical primitives to use, and it takes care of the details."
+ <https://ggplot2.tidyverse.org/>.
+
+ggplot2 lets you create different types of graphics that are often more visually more appealing than base R graphics. There are a lot of pre-set options that will make your plots look nicer than base R graphics automatically, or, you can tweak these individually for very fine control.
+
+The general structure of a ggplot object includes (1) the data in a data frame, (2) indications of what your x and y vars are (3) a specific "geom" to tell ggplot what kind of plot you actually want (sometimes there will be more than one.) What you should put (and what will actually run) depends on the nature of your x and y variables e.g. are both variables continuous? Is y continuous but x discrete? etc. This will also impact how you specify options for your respective axes. Another important aspect of a ggplot is (4) aesthetic mappings. This isn't necessary to create a ggplot, per se, but its flexibility is one of the main reasons to use ggplot as opposed to base
+
+
+# How to
+
+We'll start by installing and loading ggplot2, and then look at the basic structure behind a ggplot.
+
+### Install ggplot2 and load the library
+```{r install}
+# install.packages("ggplot2")
+library(ggplot2)
+
+```
+
+
+### Load some data 
+```{r, basic}
+data(iris)
+class(iris)
+str(iris)
+head(iris)
+```
+Side note: Keep track of which variables are numeric/factors. Often if you think your code is correct but the plot doesn't look right it's because ggplot2 thinks your numeric is a factor, or vice versa.  
+
+
+### Now, we'll create a basic scatter plot.
+
+We need to provide ggplot with the data frame, and the names of our x and y-variables. geom_point() tells it we want a scatter plot. This is the basic ggplot2 structure.
+```{r}
+g1 <- ggplot(iris, aes(x=Sepal.Width, y=Petal.Length)) + 
+      geom_point()
+print(g1) # even though typing 'g1' into the console would produce the plot in an interactive R session, any time you are creating a document (pdf, jpeg) you need to wrap your ggplot object in print()
+```
+
+
+It might be more interesting to look at this by species. We can color by another variable in our data frame, in this case, Species (a factor).
+```{r}
+g1 <- ggplot(iris, aes(Sepal.Width, Petal.Length, colour = Species)) + 
+      geom_point()
+print(g1)
+```
+
+The ordering of species is determined by the factor levels. If you want to change this ordering you can relevel the factor, or if you don't want to change your data, you can set the order of the breaks and labels manually.
+
+```{r}
+levels(iris$Species)
+```
+
+
+Side note: this is what happens if Species isn't a factor.
+```{r}
+ggplot(iris, aes(Sepal.Width, Petal.Length, colour = as.numeric(Species))) + 
+      geom_point()
+```
+
+
+We created our ggplot layer and called it g1. We can treat this like a regular R object; save it and print it later, or look at its attributes. This will give us an idea of some of the specific parts of the plot we can manipulate.
+```{r}
+attributes(g1)
+```
+
+
+We can also add things to the original ggplot layer to create a new ggplot object. For example, let's connect the points on our scatter plot.
+```{r}
+g2 <- g1 + geom_line()
+print(g2)
+```
+
+
+Now that we have a basic plot, we will go through and see how various pieces can be tweaked. Let's walk through how to creat and modify a title, axis labels, legend, and colors.
+
+
+# Titles
+
+Adding a title is fairly intuitive, just use ggtitle().
+```{r}
+g3 <- g1 + ggtitle("This is my plot.")
+print(g3)
+```
+
+
+By default the title is left-justified. If we want to change the horizontal alignment, we can do by adding a theme layer and setting hjust. Notice our g3 object with the left-justified title doesn't have this theme layer.
+```{r}
+g3$theme # this is an empty list
+```
+
+
+I like to have all parts of the code in the same place, so I'm going to create some new ggplot objects.
+```{r}
+ggplot(iris, aes(Sepal.Width, Petal.Length, colour = Species)) + 
+          geom_point() +
+          ggtitle("This is my plot, hjust = 0.") +
+          theme(plot.title = element_text(hjust = 0)) 
+
+ggplot(iris, aes(Sepal.Width, Petal.Length, colour = Species)) + 
+          geom_point() +
+          ggtitle("This is my plot, hjust = 1") +
+          theme(plot.title = element_text(hjust = 1)) 
+
+
+g4 <- ggplot(iris, aes(Sepal.Width, Petal.Length, colour = Species)) + 
+          geom_point() +
+          ggtitle("This is my plot centered, hjust = 0.5.") +
+          theme(plot.title = element_text(hjust = 0.5)) 
+
+print(g4)
+```
+
+
+Notice our theme attribute is no longer an empty list.
+```{r}
+g4$theme # not empty anymore!
+```
+
+
+We also could have created this plot by adding the theme layer directly to the object with the title. 
+```{r}
+print(g3 + theme(plot.title = element_text(hjust = 0.5)))
+```
+
+
+# Axes
+
+Use scale_x_continuous and scale_y_continuous to modify the axis titles. Notice you need to specify whether each variable is continuous, or discrete.
+```{r}
+g5 <- ggplot(iris, aes(Sepal.Width, Petal.Length, colour = Species)) + 
+          geom_point() +
+          ggtitle("This is my plot centered.") +
+          scale_x_continuous(name = "Sepal width (units)") +
+          scale_y_continuous(name = "Petal length (units)") +
+          theme(plot.title = element_text(hjust = 0.5)) 
+print(g5)
+```
+
+
+Different types of plots get different types of aesthetics, which are labeled differently. Generally, points and lines have colour aesthetics, and polygons have fill aesthetics. For example, if we create a bar chart, we need to (1) specify a fill instead of a colour for our aesthetic mapping, and (2) use scale_x_discrete() to modify the x-axis title.
+```{r}
+g_bar1 <- ggplot(iris, aes(Species, Sepal.Width, fill = Species)) +
+              geom_bar(stat = "identity") +
+              ggtitle("This is my plot centered.") +
+              scale_x_discrete("Species blah") +
+              scale_y_continuous("Sepal width (units)") +
+              theme(plot.title = element_text(hjust = 0.5))
+print(g_bar1)
+```
+
+
+Instead of the Species label for the x-axis, we might want to remove the title and make the species names more visible. Angling the x-asis text and modifying its size is especially useful if you have many factor levels and your labels are crowding each other.
+```{r}
+g_bar2 <- ggplot(iris, aes(Species, Sepal.Width, fill = Species)) +
+              geom_bar(stat = "identity") +
+              ggtitle("This is my plot centered.") +
+              scale_x_discrete(name = "", labels = c("Setosa", "Versicolor", "Virginica")) +
+              scale_y_continuous("Sepal width (units)") +
+              theme(plot.title = element_text(hjust = 0.5),
+                    axis.text.x = element_text(angle=45, vjust=0.5, size=12, color = "black"))
+print(g_bar2)
+```
+
+
+# Legends
+
+Since the bars are already labeled, we could remove the legend of our bar chart. Again, we need to specify the type of aesthetic legend that we want to remove. In this case it's a fill legend. If this were a scatter or line plot, it would be a colour legend.
+```{r}
+g_bar3 <- ggplot(iris, aes(Species, Sepal.Width, fill = Species)) +
+              geom_bar(stat = "identity") +
+              ggtitle("This is my plot centered.") +
+              scale_x_discrete(name = "", labels = c("Setosa", "Versicolor", "Virginica")) +
+              scale_y_continuous("Sepal width (units)") +
+              theme(plot.title = element_text(hjust = 0.5),
+                    axis.text.x = element_text(angle=45, vjust=0.5, size=12, color = "black")) +
+              scale_fill_discrete(guide = FALSE)
+print(g_bar3)
+```
+
+
+Or, we could use specific colors and modify the legend in other ways. Here, I am suppressing the x-axis tick marks and title, and setting colors manually, and modifying the legend labels and title. I'm also adding a manual line-break to the legend title. Scale_fill_manual is only needed for the manual coloring - you could modify the legend labels and title using scale_fill_discrete() if you were ok with default colors.
+```{r}
+g_bar4 <- ggplot(iris, aes(Species, Sepal.Width, fill = Species)) +
+              geom_bar(stat = "identity") +
+              ggtitle("This is my plot centered with ugly colors.") +
+              scale_x_discrete(name = "", breaks = NULL) +
+              scale_y_continuous("Sepal width (units)") +
+              theme(plot.title = element_text(hjust = 0.5)) +
+              scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9"), 
+                                name="Flower\nSpecies",
+                                labels=c("Setosa", "Versicolor", "Virginica"))
+print(g_bar4)
+```
+
+
+# Long/wide data: for ggplot all of your data must be in a single data frame, and grouping variables have to be stacked. Yes, this is annoying.
+
+Lets say we want to create a plot that lets us compare the bias and variance components of mse. First, we'll simulate some data that we might have.
+
+```{r}
+set.seed(123)
+bias <- rnorm(7, 0, 2) 
+bias2 <- bias^2
+var <- rgamma(7, 1, 1)
+mse <- bias2 + var
+dat <- as.data.frame(rbind(mse, bias2, var))
+names(dat) <- paste0("model_", 1:ncol(dat))
+print(dat)
+```
+
+
+We might want a plot that looks like this.
+```{r, echo=FALSE, silent = TRUE}
+dat_silent <- dat
+dat_silent <- as.data.frame(t(dat_silent))
+dat_silent$Model <- rownames(dat_silent)
+suppressPackageStartupMessages(require(reshape2))
+gdat <- melt(dat_silent[, 2:4], id.vars = "Model")
+g <- ggplot(gdat, aes(x=Model, y=value, fill=variable)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  ggtitle("Grouped bar chart")
+print(g)
+```
+
+
+Or one that looks like this.
+
+```{r, echo=FALSE}
+g <- ggplot(gdat, aes(x=Model, y=value, fill=variable)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Stacked bar chart")
+print(g)
+```
+
+
+But, for either plot we need to get our data from "wide" to "long."
+```{r}
+print(dat) # wide
+print(gdat) # long
+```
+
+
+The package reshape2 will automate a lot of this for you. It has two main functions. melt() takes wide data and makes it long, and cast will take long data and make it wide. There is another R package called tidyr that will also do this sort of thing for you, but I have not personally used it. This is how I converted my data from wide to long. 
+```{r}
+dat <- as.data.frame(t(dat))
+dat$Model <- rownames(dat)
+suppressPackageStartupMessages(require(reshape2))
+gdat <- melt(dat[, 2:4], id.vars = "Model")
+print(gdat)
+```
+
+Another reason to be aware of this stacking format is if you want to map additional aesthetic elements (size, shape, line thickness, etc.) to a graph, you'll need a vector for each aesthetic element that runs the entire length of your data. This is often important if you are combining multiple types of graphs or aesthetic elements. Another way to map multiple aesthetic elements by some factor variable is using the group aesthetic.
+
+```{r}
+g <- ggplot(iris, aes(Sepal.Width, Petal.Length, colour = Species)) + 
+      geom_point() + # as written, this inherits 'color' from the aes above
+      geom_smooth(method = lm, se = FALSE) # as written, this inherits 'color' from the aes above 
+      
+print(g)
+
+g <- ggplot(iris, aes(Sepal.Width, Petal.Length, group = Species)) + # specify a grouping var
+      geom_point(aes(colour = Species)) + # specify color specifically by the group var
+      geom_smooth(method = lm, se = FALSE, aes(colour = Species, linetype = Species)) # specify color and line type by the group var
+      
+print(g)
+```
+
+
+# Combining multiple ggplot objects
+In base R, "par(mfrow=c( , ))" is a very nice, quick way to display multiple plots on a single page. This does NOT work for ggplot plots. Happily, there are several ways around this:
+
+* [Facets](http://www.cookbook-r.com/Graphs/Facets_(ggplot2)/)
+
+* Packages
+
+  + [gridExtra](https://cran.r-project.org/web/packages/gridExtra/vignettes/arrangeGrob.html/)
+  
+  + [cowplot](https://cran.r-project.org/web/packages/cowplot/vignettes/introduction.html)
+  
+  + [egg](https://cran.r-project.org/web/packages/egg/vignettes/Overview.html)
+
+The basic idea for gridExtra/cowplot/egg is to divide up the plotting space using a grid and to plot the
+ggplot objects accordingly. I'll leave the details to these references.
+
+
+# Special characters in titles and labels
+We can include greek letters and sub/superscripts by putting our title in an expression.
+```{r}
+g4 <- ggplot(iris, aes(Sepal.Width, Petal.Length, colour = Species)) + 
+          geom_point() +
+          ggtitle(expression("This is my plot centered,"~mu^2~", "~hat(beta))) +
+          theme(plot.title = element_text(hjust = 0.5)) 
+
+print(g4)
+```
+
+But, if we want to Greek letters and sub and super scripts with variables ahhh  Bquote
+
+
+# Creating ggplots within functions
+Creating ggplot2 objects within functions!
+
+
+# Colors
+* [R color brewer](https://www.datanovia.com/en/blog/the-a-z-of-rcolorbrewer-palette/#display-all-brewer-palettes) includes nice color palettes, as well as some specific to color-blind individuals. 
+Function to get hex codes for a specific # of colors
+
+
+# Interactive ggplots: ggplotly
+* [plotly/ggplotly](https://plotly-r.com/index.html)
+* [Plotly Heatmap Example](http://myweb.uiowa.edu/pbreheny/clb/gTBFPSwBWfJFZzSyVKIw/metPan.html)
+
+
+# Other Resources
+
+* <http://www.cookbook-r.com/Graphs/> 
+
+* <https://ggplot2.tidyverse.org/>  
+
+* Google / StackOverflow
+
+* [Old but helpful and well-illustrated reshape2 examples](https://seananderson.ca/2013/10/19/reshape)
+
+* [Difference between reshape2 and tidyr](https://rpubs.com/sterding/Reshape2_and_Tidyr)
+
+
+

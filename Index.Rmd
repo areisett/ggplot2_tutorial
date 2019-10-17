@@ -310,16 +310,135 @@ g4 <- ggplot(iris, aes(Sepal.Width, Petal.Length, colour = Species)) +
 print(g4)
 ```
 
-But, if we want to Greek letters and sub and super scripts with variables ahhh  Bquote
+Or, if we want Greek letters, sub/super scripts along with variables, we need to use bquote.
+```{r}
+# what's the correlation between Petal.Length and Sepal.Width?
+myCor <- cor(iris$Petal.Length, iris$Sepal.Width)
+myCor # let's round this or it'll all print...
+myCor <- round(myCor, digits = 2)
+myCor
+
+g4 <- ggplot(iris, aes(Sepal.Width, Petal.Length, colour = Species)) + 
+          geom_point() +
+          ggtitle(bquote("r" == .(myCor)~"and"~mu^2~", "~hat(beta))) +
+          theme(plot.title = element_text(hjust = 0.5)) 
+
+print(g4)
+```
+[R-bloggers bquote reference](https://www.r-bloggers.com/math-notation-for-r-plot-titles-expression-and-bquote/)
 
 
 # Creating ggplots within functions
-Creating ggplot2 objects within functions!
+bquote can be especially helpful when creating ggplots as function outputs. Instead of plotting all three species together, we could write a function to create a scatter plot for each one, with an appropriate title.
+```{r, eval = FALSE}
+myScatter <- function(df, subvar, sublevel, xvar, yvar){
+  g_df <- df[which(df[, subvar] == sublevel),]
+  g <- ggplot(g_df, aes(x=xvar, y=yvar)) +
+       geom_point() +
+       ggtitle(bquote("Species: "~.(sublevel)))
+  return(g)
+}
+
+g <- myScatter(iris, "Species", "setosa", Sepal.Width, Petal.Length) 
+print(g)
+# Error in FUN(X[[i]], ...) : object 'Sepal.Width' not found
+```
+What's the problem with this?
+
+Within the function, xvar and yvar resolve to Sepal.Width and Petal.Length respectively, which are not defined objects. 
+
+Similarly, the code below won't give us what we want.
+```{r, eval = FALSE}
+g <- myScatter(iris, "Species", "setosa", "Sepal.Width", "Petal.Length") 
+print(g)
+```
+
+Instead, we need to include our x and y vars as strings and have ggplot map those strings to the variables we want in one of several ways. 
+```{r}
+### option 1
+myScatter <- function(df, subvar, sublevel, xvar, yvar){
+  g_df <- df[which(df[, subvar] == sublevel),]
+  
+  g_df$xvar <- g_df[, xvar] # just create vars named "xvar" 
+  g_df$yvar <- g_df[, yvar] # and "yvar"
+  
+  g <- ggplot(g_df, aes(x=xvar, y=yvar)) +
+       geom_point() +
+       ggtitle(bquote("Species: "~.(sublevel)))
+  return(g)
+}
+
+g <- myScatter(iris, "Species", "setosa", "Sepal.Width", "Petal.Length")
+print(g)
+
+
+### option 2
+myScatter <- function(df, subvar, sublevel, xvar, yvar){
+  g_df <- df[which(df[, subvar] == sublevel),]
+  g <- ggplot(g_df, aes_string(x=xvar, y=yvar)) + # use aes_string, not aes
+       geom_point() +
+       ggtitle(bquote("Species: "~.(sublevel)))
+  return(g)
+}
+
+g <- myScatter(iris, "Species", "setosa", "Sepal.Width", "Petal.Length")
+print(g)
+
+
+### option 3
+myScatter <- function(df, subvar, sublevel, xvar, yvar){
+  xvar <- sym(xvar) # sym converts the symbol to the string that the variable contains
+  print(xvar)
+  yvar <- sym(yvar)
+  g_df <- df[which(df[, subvar] == sublevel),]
+  g <- ggplot(g_df, aes(x=!!xvar, y=!!yvar)) +  # !! unquotes the string
+       geom_point() +
+       ggtitle(bquote("Species: "~.(sublevel)))
+  return(g)
+}
+
+g <- myScatter(iris, "Species", "setosa", "Sepal.Width", "Petal.Length")
+print(g)
+
+
+### option 4
+myScatter <- function(df, subvar, sublevel, xvar, yvar){
+  xvar <- ensym(xvar) # sym converts the symbol to the string that the variable contains
+  print(xvar)
+  yvar <- ensym(yvar)
+  g_df <- df[which(df[, subvar] == sublevel),]
+  g <- ggplot(g_df, aes(x=!!xvar, y=!!yvar)) +  # !! unquotes the string
+       geom_point() +
+       ggtitle(bquote("Species: "~.(sublevel)))
+  return(g)
+}
+
+g <- myScatter(iris, "Species", "setosa", "Sepal.Width", "Petal.Length")
+print(g)
+```
+
+Option 1 is admittedly hacky, and you'll end up with the not-very-informative axes labels "xvar" and "yvar." However it works consistently, and you can always pass informative labels in as characters.
+
+Option 2 works well here, but in practice I have had this break a lot.
+
+Options 3 and 4 are new as of V3.0.0 and so I admit I haven't used them. [When is sym vs. ensym appropriate?](https://community.rstudio.com/t/passing-columns-from-data-frame-to-ggplot2-in-a-function-why-sym-worked-but-ensym-did-not/26157)
 
 
 # Colors
 * [R color brewer](https://www.datanovia.com/en/blog/the-a-z-of-rcolorbrewer-palette/#display-all-brewer-palettes) includes nice color palettes, as well as some specific to color-blind individuals. 
-Function to get hex codes for a specific # of colors
+
+* For more information on the ggplot2 default color scales, and how to customize color scales, see the [scales package](https://scales.r-lib.org/)
+
+* A handy function for getting a vector of the default ggplot2 hex colors (which is just equally spaced hues around the color wheel, starting from 15) is the following:
+```{r, eval = FALSE}
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+```
+(Thanks, [stackoverflow](https://stackoverflow.com/questions/8197559/emulate-ggplot2-default-color-palette).)
+
+This is useful because it allows you to create non-ggplots that use the same color scheme as ggplots. It's also handy if you have one plot with say, 5 colors, and then you want to only plot 3 of those colors, but you want them to be consistent across plots. 
 
 
 # Interactive ggplots: ggplotly
